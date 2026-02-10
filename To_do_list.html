@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>My To-Do List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Simple, modern, responsive To-Do List
+      - Vanilla HTML/CSS/JS
+      - Persisted with localStorage
+      - Smooth animations and hover effects
+      - Minimal, soft color palette, rounded UI
+    -->
+    <style>
+        :root {
+            --bg: #f7f8fb;
+            --card-bg: #ffffff;
+            --text: #2b2d42;
+            --muted: #8a93a0;
+            --primary: #5b8def;
+            --primary-contrast: #ffffff;
+            --accent: #8ad7c1;
+            --danger: #ef5f76;
+            --border: #e6e9ef;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            --radius: 14px;
+            --radius-sm: 10px;
+        }
+
+        /* Global reset and base styles */
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            background: linear-gradient(180deg, var(--bg), #eef2f9 60%);
+        }
+
+        /* Layout */
+        .app {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        header {
+            text-align: center;
+            margin: 8px 0 20px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: clamp(1.6rem, 4vw, 2.2rem);
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        header p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        /* Card container */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 18px;
+        }
+
+        /* Input row */
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            font-size: 1rem;
+            background: #fbfcff;
+            transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        .input::placeholder {
+            color: #aab2bf;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #cfd6e3;
+            box-shadow: 0 0 0 4px rgba(91, 141, 239, 0.12);
+            background: #ffffff;
+        }
+
+        .btn {
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 12px 18px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--primary);
+            color: var(--primary-contrast);
+            box-shadow: 0 6px 18px rgba(91, 141, 239, 0.28);
+            transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease, opacity 120ms ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 12px rgba(91, 141, 239, 0.22);
+            opacity: 0.95;
+        }
+
+        /* Empty state */
+        .empty {
+            display: none;
+            padding: 16px;
+            border: 1px dashed #d7dde9;
+            border-radius: var(--radius-sm);
+            color: var(--muted);
+            background: #fafcff;
+            text-align: center;
+            margin: 6px 0 4px;
+        }
+
+        .empty.show {
+            display: block;
+        }
+
+        /* List */
+        .list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+        }
+
+        .item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
+        }
+
+        .item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            background: #fcfdff;
+        }
+
+        /* Checkbox accent color for modern browsers */
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .text {
+            font-size: 1rem;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .item.completed .text {
+            text-decoration: line-through;
+            color: var(--muted);
+        }
+
+        .delete-btn {
+            border: none;
+            background: transparent;
+            font-size: 1.1rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 8px;
+            border-radius: 50%;
+            transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
+        }
+
+        .delete-btn:hover {
+            transform: scale(1.06);
+            background-color: rgba(239, 95, 118, 0.08);
+            filter: drop-shadow(0 2px 4px rgba(239, 95, 118, 0.3));
+        }
+
+        /* Appear / Exit animations */
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeSlideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+        }
+
+        .item.appear {
+            animation: fadeSlideIn 180ms ease-out;
+        }
+
+        .item.exit {
+            animation: fadeSlideOut 180ms ease-in forwards;
+        }
+
+        /* Footer tips */
+        .tips {
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 480px) {
+            .app {
+                padding: 16px;
+            }
+            .card {
+                padding: 14px;
+            }
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app" role="main">
+        <header>
+            <h1>My To-Do List</h1>
+            <p>Stay organized. Add tasks and check them off.</p>
+        </header>
+
+        <section class="card" aria-labelledby="todo-section">
+            <h2 id="todo-section" style="position: absolute; left: -9999px; top: -9999px;">Tasks</h2>
+
+            <div class="input-row">
+                <input
+                    id="task-input"
+                    class="input"
+                    type="text"
+                    placeholder="Add a new task..."
+                    aria-label="New task"
+                    maxlength="200"
+                    autocomplete="off"
+                />
+                <button id="add-btn" class="btn" type="button" aria-label="Add task">Add Task</button>
+            </div>
+
+            <div id="empty" class="empty" aria-live="polite">No tasks yet. Add one!</div>
+
+            <ul id="todo-list" class="list" role="list" aria-live="polite"></ul>
+
+            <div class="tips">Tip: Press Enter to quickly add a task.</div>
+        </section>
+    </main>
+
+    <script>
+        // localStorage key
+        const STORAGE_KEY = "todo_list_items_v1";
+
+        // In-memory tasks array
+        let tasks = [];
+
+        // DOM references
+        const inputEl = document.getElementById("task-input");
+        const addBtn = document.getElementById("add-btn");
+        const listEl = document.getElementById("todo-list");
+        const emptyEl = document.getElementById("empty");
+
+        // Load tasks from localStorage on startup
+        init();
+
+        function init() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                tasks = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(tasks)) tasks = [];
+            } catch {
+                tasks = [];
+            }
+            renderTasks();
+            // Event listeners
+            addBtn.addEventListener("click", onAddClicked);
+            inputEl.addEventListener("keydown", onInputKeyDown);
+            listEl.addEventListener("change", onListChange);  // checkbox toggle
+            listEl.addEventListener("click", onListClick);    // delete button
+        }
+
+        // Add a new task when button clicked
+        function onAddClicked() {
+            const text = inputEl.value.trim();
+            if (!text) {
+                shakeInput();
+                return;
+            }
+            addTask(text);
+            inputEl.value = "";
+            inputEl.focus();
+        }
+
+        // Add a new task when Enter is pressed
+        function onInputKeyDown(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                onAddClicked();
+            }
+        }
+
+        // Handle checkbox toggle (event delegation)
+        function onListChange(e) {
+            const target = e.target;
+            if (target.classList.contains("checkbox")) {
+                const li = target.closest("li");
+                const id = li?.dataset?.id;
+                if (!id) return;
+                toggleTask(id, target.checked);
+            }
+        }
+
+        // Handle delete button (event delegation)
+        function onListClick(e) {
+            const target = e.target;
+            if (target.classList.contains("delete-btn")) {
+                const li = target.closest("li");
+                const id = li?.dataset?.id;
+                if (!id) return;
+                // Play exit animation before removal
+                li.classList.add("exit");
+                setTimeout(() => {
+                    deleteTask(id);
+                }, 180); // matches CSS animation duration
+            }
+        }
+
+        // Core operations
+        function addTask(text) {
+            const newTask = {
+                id: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
+                text,
+                completed: false,
+            };
+            tasks.unshift(newTask); // add to top
+            saveTasks();
+            renderTasks({ animateNewId: newTask.id });
+        }
+
+        function toggleTask(id, completed) {
+            tasks = tasks.map(t => (t.id === id ? { ...t, completed } : t));
+            saveTasks();
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+
+        function saveTasks() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+            } catch {
+                // Fallback: ignore write errors (e.g., private mode)
+            }
+        }
+
+        // Render list
+        function renderTasks(opts = {}) {
+            listEl.innerHTML = "";
+            const { animateNewId = null } = opts;
+
+            if (!tasks.length) {
+                emptyEl.classList.add("show");
+                return;
+            }
+            emptyEl.classList.remove("show");
+
+            const frag = document.createDocumentFragment();
+
+            tasks.forEach(task => {
+                const li = document.createElement("li");
+                li.className = "item";
+                li.dataset.id = task.id;
+                if (task.completed) li.classList.add("completed");
+                if (animateNewId && animateNewId === task.id) {
+                    li.classList.add("appear");
+                }
+
+                // Checkbox
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.className = "checkbox";
+                cb.checked = task.completed;
+                cb.setAttribute("aria-label", `Mark "${task.text}" as completed`);
+
+                // Text
+                const span = document.createElement("span");
+                span.className = "text";
+                span.textContent = task.text;
+
+                // Delete button
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "delete-btn";
+                btn.setAttribute("aria-label", `Delete "${task.text}"`);
+                btn.textContent = "❌";
+
+                li.append(cb, span, btn);
+                frag.appendChild(li);
+            });
+
+            listEl.appendChild(frag);
+        }
+
+        // Small UX helper: shake input when trying to add empty task
+        function shakeInput() {
+            inputEl.style.transition = "transform 120ms ease";
+            inputEl.style.transform = "translateX(4px)";
+            setTimeout(() => {
+                inputEl.style.transform = "translateX(-4px)";
+                setTimeout(() => {
+                    inputEl.style.transform = "translateX(0)";
+                }, 120);
+            }, 120);
+        }
+    </script>
+</body>
+</html>
